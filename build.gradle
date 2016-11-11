@@ -1,0 +1,30 @@
+plugins {
+    id 'eclipse-wtp'
+    id 'java'
+    id 'war'
+}
+
+group = 'net.example'
+version = '1.0-SNAPSHOT'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.slf4j:slf4j-api:$slf4jVersion"
+    compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
+    compile "log4j:log4j:$log4jVersion"
+    compile "com.vaadin:vaadin-push:$vaadinVersion"
+    compile "com.vaadin:vaadin-server:$vaadinVersion"
+    compile "com.vaadin:vaadin-themes:$vaadinVersion"
+    compile "javax.servlet:javax.servlet-api:$servletApiVersion"
+    
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.1'
+}

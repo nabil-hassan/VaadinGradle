@@ -13,12 +13,10 @@
       <param-name>UI</param-name>
       <param-value>net.example.MyUI</param-value>
     </init-param>
-    
-    <!-- If not using the default widget set-->
-    <!--     <init-param>
+    <init-param>
       <param-name>widgetset</param-name>
-      <param-value>com.ex.myprj.AppWidgetSet</param-value>
-    </init-param> -->
+      <param-value>net.example.MyWidgetSet</param-value>
+    </init-param>
   </servlet>
 
   <!-- Map the Servlet to all URL patterns -->

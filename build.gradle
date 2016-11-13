@@ -9,6 +9,8 @@ version = '1.0-SNAPSHOT'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+ext.widgetSet = 'net.example.MyWidgetSet'
+
 repositories {
     jcenter()
     mavenCentral()
@@ -18,12 +20,47 @@ dependencies {
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
     compile "log4j:log4j:$log4jVersion"
+	compile "com.vaadin:vaadin-client:$vaadinVersion"
+	compileOnly "com.vaadin:vaadin-client-compiler:$vaadinVersion"
     compile "com.vaadin:vaadin-push:$vaadinVersion"
     compile "com.vaadin:vaadin-server:$vaadinVersion"
     compile "com.vaadin:vaadin-themes:$vaadinVersion"
     compile "javax.servlet:javax.servlet-api:$servletApiVersion"
-    
 }
+
+// Generation of Widget Set
+task generateWidgetSet(type: JavaExec) {
+    classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
+    
+    maxHeapSize = '512M'
+    
+    main = 'com.vaadin.tools.WidgetsetCompiler'
+    
+    args '-war', 'src/main/webapp/VAADIN/widgetsets', '-localWorkers', '8', '-logLevel', 'INFO', project.widgetSet
+}
+
+// Cleaning of WidgetSet
+def cleanGeneratedWidgetSet() {
+	ant.delete (includeEmptyDirs: 'true') {
+		fileset(dir: "${rootDir}/src/main/webapp/VAADIN/widgetsets/", includes: "**/*", defaultexcludes: "false")
+	}
+}
+clean {
+    cleanGeneratedWidgetSet()
+}
+task cleanWidgetSet << {
+	cleanGeneratedWidgetSet()
+}
+
+
+
+// test external class
+
+
+task widgetSetCompile << {
+	println 'Widgetset Compile'
+}
+
 
 task wrapper(type: Wrapper) {
     gradleVersion = '3.1'

@@ -4,5 +4,6 @@
 .project
 build
 bin
+libs
 META-INF
 *.sh

@@ -7,3 +7,5 @@ bin
 libs
 META-INF
 *.sh
+.DS_Store
+VAADIN

@@ -20,18 +20,19 @@ repositories {
 }
 
 dependencies {
+	compileOnly "com.vaadin:vaadin-client:$vaadinVersion"
+	compileOnly "com.vaadin:vaadin-client-compiler:$vaadinVersion"
+
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
     compile "log4j:log4j:$log4jVersion"
-	compile "com.vaadin:vaadin-client:$vaadinVersion"
-	compileOnly "com.vaadin:vaadin-client-compiler:$vaadinVersion"
     compile "com.vaadin:vaadin-push:$vaadinVersion"
     compile "com.vaadin:vaadin-server:$vaadinVersion"
     compile "com.vaadin:vaadin-themes:$vaadinVersion"
     compile "javax.servlet:javax.servlet-api:$servletApiVersion"
 }
 
-// Cleaning of WidgetSet
+// Tasks related to cleaning of Widget Set.
 def cleanGeneratedWidgetSet() {
 	def dir = new File("${rootDir}/src/main/webapp/VAADIN/widgetsets/")
 	
@@ -51,8 +52,8 @@ task cleanWidgetSet(description: 'Removes all generated source files associated 
 	cleanGeneratedWidgetSet()
 }
 
-// Generation of Widget Set
-task createWidgetSetCacheDir(description: 'Creates a directory to cache temporary content in during Vaadin widget set generation', 
+// Tasks related to generation of Widget Set.
+task createWidgetSetCacheDir(description: 'Creates a temporary content directory for Vaadin widget set generation', 
                              group: 'build') << {
 	File dir = new File(project.widgetSetCacheDir)
 	
@@ -61,16 +62,27 @@ task createWidgetSetCacheDir(description: 'Creates a directory to cache temporar
 	}
 }
 
-task generateWidgetSet(description: 'Generates the Vaadin widget set specified by property project.widgetset',
+task generateWidgetSet(type: JavaExec, 
                        dependsOn: 'createWidgetSetCacheDir',
-                       group: 'build', 
-                       type: JavaExec, ) << {
-                       
-    args '-war', 'src/main/webapp/VAADIN/widgetsets', '-localWorkers', '8', '-logLevel', 'INFO', project.widgetSet
-    classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
+                       description: 'Generates the Vaadin widget set specified by property project.widgetset', 
+                       group: 'build') {
     main = 'com.vaadin.tools.WidgetsetCompiler'
-    maxHeapSize = '512M'
+    
+    classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
+
+    args '-deploy', project.widgetSetCacheDir,
+         '-extra', project.widgetSetCacheDir,
+         '-localWorkers', '8',
+         '-logLevel', 'INFO', 
+         '-war', 'src/main/webapp/VAADIN/widgetsets', 
+         project.widgetSet
+
+	systemProperty "gwt.persistentunitcachedir", project.widgetSetCacheDir
+	
+	maxHeapSize = '512M'
 }
+
+war.dependsOn('generateWidgetSet')
 
 task wrapper(type: Wrapper) {
     gradleVersion = '3.1'

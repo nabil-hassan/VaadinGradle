@@ -97,6 +97,10 @@ task copyWidgetSetToInPlaceWebapp(type: Copy) {
 war.dependsOn('generateWidgetSet')
 
 afterEvaluate {
-     prepareInplaceWebApp.dependsOn('generateWidgetSet')
-     prepareInplaceWebApp.finalizedBy copyWidgetSetToInPlaceWebapp  
+	if (project.hasProperty('skipGWTCompile'))  
+		println 'skipping gwt compilation'
+	else { 
+	    prepareInplaceWebApp.dependsOn('generateWidgetSet')
+    	prepareInplaceWebApp.finalizedBy copyWidgetSetToInPlaceWebapp
+	 }  
 }

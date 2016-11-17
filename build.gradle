@@ -123,14 +123,14 @@ compileTheme.onlyIf {
 }
 
 /**
- *  Widget set generation tasks
+ *  Widget set generation methods + tasks
  */  
 def doCleanWidgetSet() {
-	println 'Clearing compiled widget set'
-
 	def widgetDir = new File(project.widgetSetDir)
 	
 	if (widgetDir.exists()) {
+		println 'Clearing compiled widget set'
+		
 		ant.delete (includeEmptyDirs: 'true') {
 			fileset(dir: project.widgetSetDir, 
 			        includes: "**/*", 
@@ -138,77 +138,60 @@ def doCleanWidgetSet() {
 		}
 	}
 }
-
+					
 def doCleanWidgetSetCacheDir() {
-	println 'Clearing widget set cache directory'
-
 	def widgetSetCachedDir = new File(project.widgetSetCacheDir)
 	
 	if (widgetSetCachedDir.exists()) {
+		println 'Clearing widget set cache directory'
+		
 		ant.delete (includeEmptyDirs: 'true') {
-			fileset(dir: project.widgetSetCacheDir, 
-			        includes: "**/*", 
-			        defaultexcludes: "false")
+			fileset(dir: project.widgetSetCacheDir,
+					includes: "**/*",
+					defaultexcludes: "false")
 		}
 	}
 }
 
-task cleanWidgetSet(description: 'Removes all generated source files associated with the project Vaadin widget set', 
-                    group: 'build') << {
-	doCleanWidgetSet()
-}
-// TODO: this should really be changed so generate widget set is the only task that checks the property.
-//       it would need to call the clean tasks manually rather than as dependencies
-cleanWidgetSet.onlyIf {
-	! (project.hasProperty('skipGWTCompile'))
-}
-
-task cleanWidgetSetCacheDir(description: 'Removes all cached files from widget set compilation', 
-                             group: 'build') << {
-	doCleanWidgetSetCacheDir()
-}
-// TODO: see above							 
-cleanWidgetSetCacheDir.onlyIf {
-	! (project.hasProperty('skipGWTCompile'))
-}
-
-task createWidgetSetCacheDir(description: 'Creates a temporary content directory for Vaadin widget set generation', 
-                             group: 'build') << {
+def doCreateWidgetSetCacheDir() {
 	File dir = new File(project.widgetSetCacheDir)
 	
 	if (!dir.exists()) {
 		println 'Creating widget set cache directory'
 		dir.mkdirs()
-	} 
-}
-// TODO: see above
-createWidgetSetCacheDir.onlyIf {
-	! (project.hasProperty('skipGWTCompile'))
+	}
 }
 
-task generateWidgetSet(type: JavaExec, 
-                       dependsOn: ['cleanWidgetSet', 'cleanWidgetSetCacheDir', 'createWidgetSetCacheDir'],
-                       description: 'Generates the Vaadin widget set specified by property project.widgetset', 
-                       group: 'build') {
-    
-    main = 'com.vaadin.tools.WidgetsetCompiler'
-    
-    classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
-
-    args '-deploy', project.widgetSetCacheDir,
-         '-extra', project.widgetSetCacheDir,
-         '-localWorkers', '8',
-         '-logLevel', 'INFO', 
-         '-war', 'src/main/webapp/VAADIN/widgetsets', 
-         project.widgetSet
-
-	systemProperty "gwt.persistentunitcachedir", project.widgetSetCacheDir
+task generateWidgetSet(description: 'Generates the Vaadin widget set specified by property project.widgetset', 
+                       group: 'build') << {
 	
-	maxHeapSize = '512M'
-}
-					   
-generateWidgetSet.onlyIf {
-	! (project.hasProperty('skipGWTCompile'))
+    if (project.hasProperty("skipGWTCompile")) {
+		println 'Skipping GWT compilation'
+		throw new StopExecutionException() 
+	}
+	
+	doCleanWidgetSet()
+	doCleanWidgetSetCacheDir()
+	doCreateWidgetSetCacheDir()
+	
+	println 'Compiling widget set'
+	
+	javaexec {
+    	main = 'com.vaadin.tools.WidgetsetCompiler'
+    			
+		classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
+    			
+		args '-deploy', project.widgetSetCacheDir,
+             '-extra', project.widgetSetCacheDir,
+             '-localWorkers', '8',
+             '-logLevel', 'INFO', 
+             '-war', 'src/main/webapp/VAADIN/widgetsets', 
+             project.widgetSet
+    			
+		systemProperty "gwt.persistentunitcachedir", project.widgetSetCacheDir
+    			
+		maxHeapSize = '512M'
+	}
 }
 
 /**

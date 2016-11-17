@@ -1,10 +1,15 @@
+import java.awt.Desktop;
+import java.net.URI;
+
+/** 
+ * Core project attributes etc
+ */
 plugins {
     id 'eclipse-wtp'
     id 'java'
     id 'war'
     id "org.akhikhl.gretty" version "1.4.0"
 }
-
 
 description = "Vaadin demo project"
 group = 'net.example'
@@ -13,7 +18,10 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 ext {
+	themeName = "mytheme"
+	themeDir = "${rootDir}/src/main/webapp/VAADIN/themes/${themeName}"
 	widgetSet = "net.example.MyWidgetSet"
+	widgetSetDir = "${rootDir}/src/main/webapp/VAADIN/widgetsets"
 	widgetSetCacheDir = "${rootDir}/build/tmp/gwtCacheDir"
 }
 
@@ -39,40 +47,150 @@ task wrapper(type: Wrapper) {
     gradleVersion = '3.1'
 }
 
-// Tasks related to cleaning of Widget Set.
-def cleanGeneratedWidgetSet() {
-	def dir = new File("${rootDir}/src/main/webapp/VAADIN/widgetsets/")
+/** 
+ * Theme generation tasks
+ */
+def doCleanTheme() {
+	File cssFile = new File("${themeDir}/styles.css")
+	File scssFile = new File("${themeDir}/styles.scss")
+
+	if (cssFile.exists() && scssFile.exists()) {
+		println 'Cleaning compiled theme css file'
+		cssFile.delete()
+	} 
+}
+
+task cleanTheme(description: 'Removes compiled css from the theme directory', 
+                group: 'build') << {
+	doCleanTheme()
+}
+						
+task generateThemeFiles(description: 'Generates basic theme files - only if theme directory doesn/t exist, or is empty', 
+                        group: 'build') << {
+
+	// Create theme folder (if it doesn't exist)
+	File themeDir = new File(project.themeDir)
+	if (!themeDir.exists()) {
+		themeDir.mkdirs()
+	}
+						
+    // Copy favicon resource
+	copy {
+		from "${rootDir}/src/main/resources"
+		into project.themeDir
+		include "*.ico"
+	}					
 	
-	if (dir.exists()) {
+	// Create styles.scss
+	File stylesScss = new File("${project.themeDir}/styles.scss");
+	stylesScss.text = new StringBuilder()
+	        .append("@import \"${project.themeName}.scss\";")
+			.append("\n\n")
+			.append("@include ${project.themeName}")
+			.toString()
+	
+	// Create theme scss file
+    File themeScss = new File("${project.themeDir}/${project.themeName}.scss");
+	themeScss.text = new StringBuilder()
+			.append("@import \"../valo/valo.scss\";\n\n")
+			.append("@mixin mytheme {\n")
+			.append("    @include valo;\n")
+			.append("}\n")
+}
+						
+generateThemeFiles.onlyIf {
+	File themeDir = new File(project.themeDir)
+	!themeDir.exists() || themeDir.list().length == 0
+}
+
+task compileTheme(type: JavaExec,
+	              description: 'Compiles the application theme .scss files',
+                  dependsOn: ['cleanTheme'],
+	              group: 'build') {
+
+	main = 'com.vaadin.sass.SassCompiler'
+	
+	classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java', 'src/main/webapp')
+	
+	args "$themeDir/styles.scss", "$themeDir/styles.css"
+	
+	maxHeapSize = '256M'
+}
+
+compileTheme.onlyIf {
+	File scssFile = new File("$themeDir/styles.scss")
+	scssFile.exists()
+}
+
+/**
+ *  Widget set generation tasks
+ */  
+def doCleanWidgetSet() {
+	println 'Clearing compiled widget set'
+
+	def widgetDir = new File(project.widgetSetDir)
+	
+	if (widgetDir.exists()) {
 		ant.delete (includeEmptyDirs: 'true') {
-			fileset(dir: "${rootDir}/src/main/webapp/VAADIN/widgetsets/", includes: "**/*", defaultexcludes: "false")
+			fileset(dir: project.widgetSetDir, 
+			        includes: "**/*", 
+			        defaultexcludes: "false")
 		}
 	}
 }
 
-clean {
-    cleanGeneratedWidgetSet()
+def doCleanWidgetSetCacheDir() {
+	println 'Clearing widget set cache directory'
+
+	def widgetSetCachedDir = new File(project.widgetSetCacheDir)
+	
+	if (widgetSetCachedDir.exists()) {
+		ant.delete (includeEmptyDirs: 'true') {
+			fileset(dir: project.widgetSetCacheDir, 
+			        includes: "**/*", 
+			        defaultexcludes: "false")
+		}
+	}
 }
 
 task cleanWidgetSet(description: 'Removes all generated source files associated with the project Vaadin widget set', 
                     group: 'build') << {
-	cleanGeneratedWidgetSet()
+	doCleanWidgetSet()
+}
+// TODO: this should really be changed so generate widget set is the only task that checks the property.
+//       it would need to call the clean tasks manually rather than as dependencies
+cleanWidgetSet.onlyIf {
+	! (project.hasProperty('skipGWTCompile'))
 }
 
-// Tasks related to generation of Widget Set.
+task cleanWidgetSetCacheDir(description: 'Removes all cached files from widget set compilation', 
+                             group: 'build') << {
+	doCleanWidgetSetCacheDir()
+}
+// TODO: see above							 
+cleanWidgetSetCacheDir.onlyIf {
+	! (project.hasProperty('skipGWTCompile'))
+}
+
 task createWidgetSetCacheDir(description: 'Creates a temporary content directory for Vaadin widget set generation', 
                              group: 'build') << {
 	File dir = new File(project.widgetSetCacheDir)
 	
 	if (!dir.exists()) {
+		println 'Creating widget set cache directory'
 		dir.mkdirs()
-	}
+	} 
+}
+// TODO: see above
+createWidgetSetCacheDir.onlyIf {
+	! (project.hasProperty('skipGWTCompile'))
 }
 
 task generateWidgetSet(type: JavaExec, 
-                       dependsOn: 'createWidgetSetCacheDir',
+                       dependsOn: ['cleanWidgetSet', 'cleanWidgetSetCacheDir', 'createWidgetSetCacheDir'],
                        description: 'Generates the Vaadin widget set specified by property project.widgetset', 
                        group: 'build') {
+    
     main = 'com.vaadin.tools.WidgetsetCompiler'
     
     classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
@@ -88,19 +206,34 @@ task generateWidgetSet(type: JavaExec,
 	
 	maxHeapSize = '512M'
 }
+					   
+generateWidgetSet.onlyIf {
+	! (project.hasProperty('skipGWTCompile'))
+}
 
-task copyWidgetSetToInPlaceWebapp(type: Copy) {
+/**
+ *  Task extensions related to core Gradle tasks.
+ */
+clean.doLast {
+	doCleanWidgetSet()
+	doCleanWidgetSetCacheDir()
+	doCleanTheme()
+}
+
+war.dependsOn('compileTheme', 'generateWidgetSet')
+
+/**
+ *  Task extensions related to the Gretty plugin. 
+ */
+task copyVaadinContentToInPlaceWebapp(type: Copy) {
     from 'src/main/webapp/VAADIN'
     into 'build/inplaceWebapp/VAADIN'
 }
 
-war.dependsOn('generateWidgetSet')
-
+/**
+ *  Extensions related to external plugin tasks. 
+ */
 afterEvaluate {
-	if (project.hasProperty('skipGWTCompile'))  
-		println 'skipping gwt compilation'
-	else { 
-	    prepareInplaceWebApp.dependsOn('generateWidgetSet')
-    	prepareInplaceWebApp.finalizedBy copyWidgetSetToInPlaceWebapp
-	 }  
+	prepareInplaceWebApp.dependsOn('compileTheme', 'generateWidgetSet')
+	prepareInplaceWebApp.finalizedBy copyVaadinContentToInPlaceWebapp
 }

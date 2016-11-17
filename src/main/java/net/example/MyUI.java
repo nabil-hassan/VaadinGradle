@@ -3,6 +3,7 @@ package net.example;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaadin.annotations.Theme;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.HorizontalLayout;
@@ -12,13 +13,14 @@ import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
+@Theme("mytheme")
 public class MyUI extends UI {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(MyUI.class);
 
 	@Override
 	protected void init(VaadinRequest request){
-		LOG.info("Web application initialising");
+		LOG.info("Web application is now initialising");
 		
 		VerticalLayout rootLayout = new VerticalLayout();
 	    HorizontalLayout textFieldLayout = new HorizontalLayout();

@@ -1,15 +1,16 @@
-import java.awt.Desktop;
-import java.net.URI;
-
-/** 
- * Core project attributes etc
- */
+/** ================================================================================================================
+ *                                        Project Plugins
+ *  ================================================================================================================ */
 plugins {
     id 'eclipse-wtp'
     id 'java'
     id 'war'
     id "org.akhikhl.gretty" version "1.4.0"
 }
+
+/** ================================================================================================================
+ *                                        Project Attributes
+ *  ================================================================================================================  */
 
 description = "Vaadin demo project"
 group = 'net.example'
@@ -25,6 +26,9 @@ ext {
 	widgetSetCacheDir = "${rootDir}/build/tmp/gwtCacheDir"
 }
 
+/** ================================================================================================================
+ *                                        Project Dependency Management
+ *  ================================================================================================================ */
 repositories {
     jcenter()
     mavenCentral()
@@ -47,9 +51,9 @@ task wrapper(type: Wrapper) {
     gradleVersion = '3.1'
 }
 
-/** 
- * Theme generation tasks
- */
+/** ================================================================================================================
+ *                                             Vaadin Theme Tasks
+ *  ================================================================================================================ */
 def doCleanTheme() {
 	File cssFile = new File("${themeDir}/styles.css")
 	File scssFile = new File("${themeDir}/styles.scss")
@@ -122,9 +126,9 @@ compileTheme.onlyIf {
 	scssFile.exists()
 }
 
-/**
- *  Widget set generation methods + tasks
- */  
+/** ================================================================================================================
+ *                                          Vaadin WidgetSet Tasks
+ *  ================================================================================================================ */
 def doCleanWidgetSet() {
 	def widgetDir = new File(project.widgetSetDir)
 	
@@ -194,9 +198,9 @@ task generateWidgetSet(description: 'Generates the Vaadin widget set specified b
 	}
 }
 
-/**
- *  Task extensions related to core Gradle tasks.
- */
+/**=================================================================================================================
+ *                                        Project Task Extensions
+ * ================================================================================================================= */
 clean.doLast {
 	doCleanWidgetSet()
 	doCleanWidgetSetCacheDir()
@@ -205,17 +209,14 @@ clean.doLast {
 
 war.dependsOn('compileTheme', 'generateWidgetSet')
 
-/**
- *  Task extensions related to the Gretty plugin. 
- */
+/**=================================================================================================================
+ *                                        External Plugin Extensions
+ * ================================================================================================================= */
 task copyVaadinContentToInPlaceWebapp(type: Copy) {
     from 'src/main/webapp/VAADIN'
     into 'build/inplaceWebapp/VAADIN'
 }
 
-/**
- *  Extensions related to external plugin tasks. 
- */
 afterEvaluate {
 	prepareInplaceWebApp.dependsOn('compileTheme', 'generateWidgetSet')
 	prepareInplaceWebApp.finalizedBy copyVaadinContentToInPlaceWebapp

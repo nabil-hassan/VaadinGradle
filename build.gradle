@@ -5,7 +5,7 @@ plugins {
     id 'eclipse-wtp'
     id 'java'
     id 'war'
-    id "org.akhikhl.gretty" version "1.4.0"
+    id "org.akhikhl.gretty" version "2.0.0"
 }
 
 /** ================================================================================================================
@@ -19,11 +19,11 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 ext {
-	themeName = "mytheme"
-	themeDir = "${rootDir}/src/main/webapp/VAADIN/themes/${themeName}"
-	widgetSet = "net.example.MyWidgetSet"
-	widgetSetDir = "${rootDir}/src/main/webapp/VAADIN/widgetsets"
-	widgetSetCacheDir = "${rootDir}/build/tmp/gwtCacheDir"
+    themeName = "mytheme"
+    themeDir = "${rootDir}/src/main/webapp/VAADIN/themes/${themeName}"
+    widgetSet = "net.example.MyWidgetSet"
+    widgetSetDir = "${rootDir}/src/main/webapp/VAADIN/widgetsets"
+    widgetSetCacheDir = "${rootDir}/build/tmp/gwtCacheDir"
 }
 
 /** ================================================================================================================
@@ -35,8 +35,8 @@ repositories {
 }
 
 dependencies {
-	compileOnly "com.vaadin:vaadin-client:$vaadinVersion"
-	compileOnly "com.vaadin:vaadin-client-compiler:$vaadinVersion"
+    compileOnly "com.vaadin:vaadin-client:$vaadinVersion"
+    compileOnly "com.vaadin:vaadin-client-compiler:$vaadinVersion"
 
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
@@ -48,166 +48,173 @@ dependencies {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '3.1'
+    gradleVersion = '4.0.1'
 }
 
 /** ================================================================================================================
  *                                             Vaadin Theme Tasks
  *  ================================================================================================================ */
-def doCleanTheme() {
-	File cssFile = new File("${themeDir}/styles.css")
-	File scssFile = new File("${themeDir}/styles.scss")
+task generateThemeFiles(description: 'Generates basic theme files - only if theme directory doesn/t exist, or is empty',
+        group: 'build') {
 
-	if (cssFile.exists() && scssFile.exists()) {
-		println 'Cleaning compiled theme css file'
-		cssFile.delete()
-	} 
+    doLast {
+        // Create theme folder (if it doesn't exist)
+        File themeDir = new File(project.themeDir)
+        if (!themeDir.exists()) {
+            themeDir.mkdirs()
+        }
+
+        // Copy favicon resource
+        copy {
+            from "${rootDir}/src/main/resources"
+            into project.themeDir
+            include "*.ico"
+        }
+
+        // Create styles.scss
+        File stylesScss = new File("${project.themeDir}/styles.scss");
+        stylesScss.text = new StringBuilder()
+                .append("@import \"${project.themeName}.scss\";")
+                .append("\n\n")
+                .append("@include ${project.themeName}")
+                .toString()
+
+        // Create theme scss file
+        File themeScss = new File("${project.themeDir}/${project.themeName}.scss");
+        themeScss.text = new StringBuilder()
+                .append("@import \"../valo/valo.scss\";\n\n")
+                .append("@mixin mytheme {\n")
+                .append("    @include valo;\n")
+                .append("}\n")
+    }
 }
 
-task cleanTheme(description: 'Removes compiled css from the theme directory', 
-                group: 'build') << {
-	doCleanTheme()
-}
-						
-task generateThemeFiles(description: 'Generates basic theme files - only if theme directory doesn/t exist, or is empty', 
-                        group: 'build') << {
-
-	// Create theme folder (if it doesn't exist)
-	File themeDir = new File(project.themeDir)
-	if (!themeDir.exists()) {
-		themeDir.mkdirs()
-	}
-						
-    // Copy favicon resource
-	copy {
-		from "${rootDir}/src/main/resources"
-		into project.themeDir
-		include "*.ico"
-	}					
-	
-	// Create styles.scss
-	File stylesScss = new File("${project.themeDir}/styles.scss");
-	stylesScss.text = new StringBuilder()
-	        .append("@import \"${project.themeName}.scss\";")
-			.append("\n\n")
-			.append("@include ${project.themeName}")
-			.toString()
-	
-	// Create theme scss file
-    File themeScss = new File("${project.themeDir}/${project.themeName}.scss");
-	themeScss.text = new StringBuilder()
-			.append("@import \"../valo/valo.scss\";\n\n")
-			.append("@mixin mytheme {\n")
-			.append("    @include valo;\n")
-			.append("}\n")
-}
-						
 generateThemeFiles.onlyIf {
-	File themeDir = new File(project.themeDir)
-	!themeDir.exists() || themeDir.list().length == 0
+    File themeDir = new File(project.themeDir)
+    !themeDir.exists() || themeDir.list().length == 0
 }
 
-task compileTheme(type: JavaExec,
-	              description: 'Compiles the application theme .scss files',
-                  dependsOn: ['cleanTheme'],
-	              group: 'build') {
+task compileTheme(description: 'Compiles the application theme .scss files', group: 'build') {
+    inputs.files(new File("$themeDir/styles.scss"))
+    outputs.files(new File("$themeDir/styles.css"))
 
-	main = 'com.vaadin.sass.SassCompiler'
-	
-	classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java', 'src/main/webapp')
-	
-	args "$themeDir/styles.scss", "$themeDir/styles.css"
-	
-	maxHeapSize = '256M'
+    doLast {
+        doCleanTheme()
+
+        javaexec {
+            main = 'com.vaadin.sass.SassCompiler'
+
+            classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java', 'src/main/webapp')
+
+            args "$themeDir/styles.scss", "$themeDir/styles.css"
+
+            maxHeapSize = '256M'
+        }
+    }
 }
 
 compileTheme.onlyIf {
-	File scssFile = new File("$themeDir/styles.scss")
-	scssFile.exists()
+    File scssFile = new File("$themeDir/styles.scss")
+    scssFile.exists()
+}
+
+def doCleanTheme() {
+    File cssFile = new File("${themeDir}/styles.css")
+    File scssFile = new File("${themeDir}/styles.scss")
+
+    if (cssFile.exists() && scssFile.exists()) {
+        println 'Cleaning compiled theme css file'
+        cssFile.delete()
+    }
 }
 
 /** ================================================================================================================
  *                                          Vaadin WidgetSet Tasks
  *  ================================================================================================================ */
-def doCleanWidgetSet() {
-	def widgetDir = new File(project.widgetSetDir)
-	
-	if (widgetDir.exists()) {
-		println 'Clearing compiled widget set'
-		
-		ant.delete (includeEmptyDirs: 'true') {
-			fileset(dir: project.widgetSetDir, 
-			        includes: "**/*", 
-			        defaultexcludes: "false")
-		}
-	}
+task generateWidgetSet(description: 'Generates the Vaadin widget set specified by property project.widgetset',
+        group: 'build') {
+
+    inputs.files(fileTree("src/resources/net/example"));
+    outputs.files(fileTree(project.widgetSetDir))
+
+    doLast {
+        if (project.hasProperty("skipGWTCompile")) {
+            println 'Skipping GWT compilation'
+            throw new StopExecutionException()
+        }
+
+        doCleanWidgetSet()
+        doCleanWidgetSetCacheDir()
+        doCreateWidgetSetCacheDir()
+
+        println 'Compiling widget set'
+
+        javaexec {
+            main = 'com.vaadin.tools.WidgetsetCompiler'
+
+            classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
+
+            args '-deploy', project.widgetSetCacheDir,
+                    '-extra', project.widgetSetCacheDir,
+                    '-localWorkers', '8',
+                    '-logLevel', 'INFO',
+                    '-war', 'src/main/webapp/VAADIN/widgetsets',
+                    project.widgetSet
+
+            systemProperty "gwt.persistentunitcachedir", project.widgetSetCacheDir
+
+            maxHeapSize = '512M'
+        }
+    }
 }
-					
+
+def doCleanWidgetSet() {
+    def widgetDir = new File(project.widgetSetDir)
+
+    if (widgetDir.exists()) {
+        println 'Clearing compiled widget set'
+
+        ant.delete(includeEmptyDirs: 'true') {
+            fileset(dir: project.widgetSetDir,
+                    includes: "**/*",
+                    defaultexcludes: "false")
+        }
+    }
+}
+
 def doCleanWidgetSetCacheDir() {
-	def widgetSetCachedDir = new File(project.widgetSetCacheDir)
-	
-	if (widgetSetCachedDir.exists()) {
-		println 'Clearing widget set cache directory'
-		
-		ant.delete (includeEmptyDirs: 'true') {
-			fileset(dir: project.widgetSetCacheDir,
-					includes: "**/*",
-					defaultexcludes: "false")
-		}
-	}
+    def widgetSetCachedDir = new File(project.widgetSetCacheDir)
+
+    if (widgetSetCachedDir.exists()) {
+        println 'Clearing widget set cache directory'
+
+        ant.delete(includeEmptyDirs: 'true') {
+            fileset(dir: project.widgetSetCacheDir,
+                    includes: "**/*",
+                    defaultexcludes: "false")
+        }
+    }
 }
 
 def doCreateWidgetSetCacheDir() {
-	File dir = new File(project.widgetSetCacheDir)
-	
-	if (!dir.exists()) {
-		println 'Creating widget set cache directory'
-		dir.mkdirs()
-	}
-}
+    File dir = new File(project.widgetSetCacheDir)
 
-task generateWidgetSet(description: 'Generates the Vaadin widget set specified by property project.widgetset', 
-                       group: 'build') << {
-	
-    if (project.hasProperty("skipGWTCompile")) {
-		println 'Skipping GWT compilation'
-		throw new StopExecutionException() 
-	}
-	
-	doCleanWidgetSet()
-	doCleanWidgetSetCacheDir()
-	doCreateWidgetSetCacheDir()
-	
-	println 'Compiling widget set'
-	
-	javaexec {
-    	main = 'com.vaadin.tools.WidgetsetCompiler'
-    			
-		classpath = sourceSets.main.compileClasspath + files('src/main/resources', 'src/main/java')
-    			
-		args '-deploy', project.widgetSetCacheDir,
-             '-extra', project.widgetSetCacheDir,
-             '-localWorkers', '8',
-             '-logLevel', 'INFO', 
-             '-war', 'src/main/webapp/VAADIN/widgetsets', 
-             project.widgetSet
-    			
-		systemProperty "gwt.persistentunitcachedir", project.widgetSetCacheDir
-    			
-		maxHeapSize = '512M'
-	}
+    if (!dir.exists()) {
+        println 'Creating widget set cache directory'
+        dir.mkdirs()
+    }
 }
 
 /**=================================================================================================================
  *                                        Project Task Extensions
  * ================================================================================================================= */
 clean.doLast {
-	doCleanWidgetSet()
-	doCleanWidgetSetCacheDir()
-	doCleanTheme()
+    doCleanWidgetSet()
+    doCleanWidgetSetCacheDir()
+    doCleanTheme()
 }
 
-war.dependsOn('compileTheme', 'generateWidgetSet')
+build.finalizedBy 'compileTheme', 'generateWidgetSet'
 
 /**=================================================================================================================
  *                                        External Plugin Extensions
@@ -218,6 +225,6 @@ task copyVaadinContentToInPlaceWebapp(type: Copy) {
 }
 
 afterEvaluate {
-	prepareInplaceWebApp.dependsOn('compileTheme', 'generateWidgetSet')
-	prepareInplaceWebApp.finalizedBy copyVaadinContentToInPlaceWebapp
+    prepareInplaceWebApp.dependsOn('compileTheme', 'generateWidgetSet')
+    prepareInplaceWebApp.finalizedBy copyVaadinContentToInPlaceWebapp
 }
